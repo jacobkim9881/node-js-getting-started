@@ -3,6 +3,8 @@ const path = require('path')
 const bodyParser = require('body-parser')
 const PORT = process.env.PORT || 5000
 
+const cors = require('cors');
+
 const { Pool } = require('pg');
 const pool = new Pool({
   connectionString: process.env.DATABASE_URL,
@@ -13,6 +15,8 @@ const pool = new Pool({
 
 
 const app = express();
+
+app.use(cors());
 
 app.use(bodyParser.json());
 app.use(bodyParser.urlencoded({ extended: true}));
