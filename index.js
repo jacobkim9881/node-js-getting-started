@@ -1,6 +1,8 @@
 const express = require('express')
 const path = require('path')
 const bodyParser = require('body-parser')
+const session = require('express-session')
+
 const PORT = process.env.PORT || 5000
 
 const cors = require('cors');
@@ -34,22 +36,82 @@ app.use('/static', express.static('public'));
 
 app.use(cors());
 
+app.set('trust proxy', 1) // trust first proxy
+app.use(session({
+  secret: 'keyboard cat',
+  resave: false,
+  saveUninitialized: true,
+  cookie: { secure: true }
+}))
+
 app.use(bodyParser.json());
 app.use(bodyParser.urlencoded({ extended: true}));
 
 
 app
-  .get('/', async (req, res) => {	  
+  .get('/', async (req, res) => {
     try {
       const client = await pool.connect();
       const result = await client.query('SELECT * FROM test_table');
       const results = { 'results': (result) ? result.rows : null};
       res.json(results);
       client.release();
+      console.log(req.session)
     } catch (err) {
       console.error(err);
       res.send("Error " + err);
     }
   })
+
+app.post('/test', async (req, res) => {
+  try {
+	  const client = await pool.connect();
+	  const text = 'INSERT INTO test_table(id, name) VALUES ($1, $2)';
+	  console.log(req.body);
+          const values = [req.body.id, req.body.name];
+	  client.query(text, values, (err, res) => {
+	    if (err) {
+ 	    console.log('Error is occured while post:',err);
+	    } else {
+	    console.log(res.rows);
+	    }
+	    client.release();
+	  })
+	  res.end();
+  } catch {
+    console.error(err);
+  }
+})
+
+app.delete('/del', async (req, res) => {
+  const client = await pool.connect();
+  const text = 'DELETE FROM test_table WHERE id= ($1)';
+  const value = [req.body.id]	
+  
+  client.query(text, value, (err, raw) => {
+    if (err) {
+    console.log('Error is occured while deleting a row: ', err)
+    } else {
+     console.log('Deleting is successfull: ', raw);
+    }
+  })	
+  res.end();
+
+})
+
+app.put('/edit', async (req, res) => {
+  const client = await pool.connect();
+  const text = 'UPDATE test_table SET name = ($1) WHERE id= ($2)';
+  const value = [req.body.name, req.body.id];
+
+  client.query(text, value, (err, raw) => {
+   if (err) {
+    console.log('Error is occured whild editing: ', err)
+   } else {
+    console.log('Editing is successful: ', raw);
+   }
+  });
+   res.end();	
+})
 
 app.listen(PORT, () => console.log(`Listening on ${ PORT }`))
