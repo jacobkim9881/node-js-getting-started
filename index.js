@@ -3,7 +3,7 @@ const path = require('path')
 const bodyParser = require('body-parser')
 const session = require('express-session')
 
-const { Sequelize } = require('sequelize');
+const { Sequelize, DataTypes } = require('sequelize');
 
 const PORT = process.env.PORT || 5000
 
@@ -62,6 +62,26 @@ app.use(session({
 
 app.use(bodyParser.json());
 app.use(bodyParser.urlencoded({ extended: true}));
+
+const User = sequelize.define('test_table', {
+  id: {
+	  type: DataTypes.INTEGER,
+	  primaryKey: true
+  },
+  name: {
+    type: DataTypes.STRING
+  },
+  password: {
+    type: DataTypes.STRING
+  }	
+})
+
+try {
+  console.log('Defining table: ', User)
+} catch(err) {
+  console.log('Error is occured while defining table: ', err);
+
+}
 
 /*
 // Crud test //
