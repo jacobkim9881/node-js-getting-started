@@ -3,7 +3,7 @@ const path = require('path')
 const bodyParser = require('body-parser')
 const session = require('express-session')
 
-const { Sequelize, DataTypes } = require('sequelize');
+const { Sequelize, DataTypes, Model } = require('sequelize');
 
 const PORT = process.env.PORT || 5000
 
@@ -63,25 +63,107 @@ app.use(session({
 app.use(bodyParser.json());
 app.use(bodyParser.urlencoded({ extended: true}));
 
-const User = sequelize.define('test_table', {
+class User extends Model {
+  static getAdmin() {
+  return 'admin'
+  }
+
+}
+
+try {
+  console.log('Get admin is successfull: ', User.getAdmin())
+} catch(err) {
+  console.log('Got an error while getting admin: ', err)
+}
+
+User.init({
   id: {
 	  type: DataTypes.INTEGER,
-	  primaryKey: true
+	  primaryKey: true,
+	  autoIncrement: true
   },
   name: {
     type: DataTypes.STRING
   },
   password: {
-    type: DataTypes.STRING
+    type: DataTypes.STRING,
+    timestamps: true	  
   }	
+
+},{
+  sequelize,
+  tableName: 'test_table'	
 })
 
+//// THIS MAKES THE TABLE DROPPED AND CREATE
+//await sequelize.sync({ force: true });
+////
+
+
+/*
+const User = sequelize.define('test_table', {
+  id: {
+	  type: DataTypes.INTEGER,
+	  primaryKey: true,
+	  autoIncrement: true
+  },
+  name: {
+    type: DataTypes.STRING
+  },
+  password: {
+    type: DataTypes.STRING,
+    timestamps: true	  
+  }	
+})
+*/
 try {
-  console.log('Defining table: ', User)
+  console.log('Defining table: ', User);
 } catch(err) {
   console.log('Error is occured while defining table: ', err);
 
 }
+
+app.get('/', async (req, res) => {
+
+  const users = await User.findAll();
+  
+  try {
+  res.json(users);
+  console.log('Select is successfull: ', JSON.stringify(users));	  
+  } catch(err) {
+  console.log('Error is occured while select: ', err);
+  res.end();	  
+  }
+
+})
+
+app.post('/test', async(req, res) => {
+ const time = new Date().getTime();
+ const user1 = await User.create({ name: req.body.name, password: req.body.password, createdAt: time, updatedAt: time }); 
+ try {
+  console.log('Post is successfull: ', user1._previousDataValues);
+ } catch(err) {
+  console.log('Error is occured while post: ', err);  
+ }
+ res.end();
+})
+
+app.get('/find/:userId', async (req, res) => {
+  const userId = await User.findAll({
+	  where: {
+		  id: req.params.userId*1
+	  }
+  });
+
+  try{
+  console.log('Finding user by ID is successfull: ', JSON.stringify(userId));
+  res.json(userId);	  
+  } catch(err) {
+  console.log('Error is occured while finding user by ID: ', err);
+  res.end();	  
+  }
+	
+})
 
 /*
 // Crud test //
