@@ -134,7 +134,7 @@ app.get('/', async (req, res) => {
   
   try {
   res.json(users);
-  console.log('Select is successfull: ', JSON.stringify(users));	  
+  console.log('Select is successfull: ', JSON.stringify(users));	 
   } catch(err) {
   console.log('Error is occured while select: ', err);
   res.end();	  
@@ -176,9 +176,40 @@ app.get('/find/:userId', async (req, res) => {
 
 app.get('/auth', async (req,res)=> {
 
+  const user = await User.findAll({
+    where: {
+      id: req.body.id
+    }
+  })
 
-console.log('param: ',req.body);
-res.end();
+  const data = user[0].dataValues;
+
+  try{
+  console.log('Loading id is successfull: ', data);	  
+  } catch(err) {
+  console.log('Error is occured while loading id: ', err);
+  }
+	
+ hash({ password: req.body.password, salt:data.salt  }, (error, pass, salt, hash) => {
+ if (error) {
+  console.log('Error is occured while hash: ', error);
+  res.end();	 
+ }
+ if (hash === data.hash) {
+ console.log('Auth is successfull: ', data.id, data.name)
+req.session.loggedin = true;
+  req.session.username = data.name;	
+  console.log(req.session)	 
+  res.redirect('/home')
+ } 	 
+ })
+
+//res.json({name: data.name});
+})
+
+app.get('/home', (req, res) => {
+  console.log(req.session);
+  res.end();
 })
 
 /*
