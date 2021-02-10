@@ -2,6 +2,7 @@ const express = require('express')
 const path = require('path')
 const bodyParser = require('body-parser')
 const session = require('express-session')
+const hash = require('pbkdf2-password')()
 
 const { Sequelize, DataTypes, Model } = require('sequelize');
 
@@ -85,10 +86,14 @@ User.init({
   name: {
     type: DataTypes.STRING
   },
-  password: {
+  salt: {
     type: DataTypes.STRING,
     timestamps: true	  
-  }	
+  },
+	hash: {
+		type: DataTypes.STRING,
+		timestamps: true
+	}	
 
 },{
   sequelize,
@@ -96,7 +101,7 @@ User.init({
 })
 
 //// THIS MAKES THE TABLE DROPPED AND CREATE
-//await sequelize.sync({ force: true });
+//sequelize.sync({ force: true });
 ////
 
 
@@ -138,14 +143,18 @@ app.get('/', async (req, res) => {
 })
 
 app.post('/test', async(req, res) => {
+
+await hash({ password: req.body.password }, (error, pass, salt, hash) =>{	
  const time = new Date().getTime();
- const user1 = await User.create({ name: req.body.name, password: req.body.password, createdAt: time, updatedAt: time }); 
+ const user1 = User.create({ name: req.body.name, salt: salt, hash: hash, createdAt: time, updatedAt: time }); 
+
  try {
   console.log('Post is successfull: ', user1._previousDataValues);
  } catch(err) {
   console.log('Error is occured while post: ', err);  
  }
  res.end();
+ })
 })
 
 app.get('/find/:userId', async (req, res) => {
@@ -163,6 +172,13 @@ app.get('/find/:userId', async (req, res) => {
   res.end();	  
   }
 	
+})
+
+app.get('/auth', async (req,res)=> {
+
+
+console.log('param: ',req.body);
+res.end();
 })
 
 /*

@@ -17,6 +17,7 @@
     "express": "^4.15.2",
     "express-session": "^1.17.1",
     "nodemon": "^2.0.7",
+    "pbkdf2-password": "^1.2.1",
     "pg": "^8.5.1",
     "pg-hstore": "^2.3.3",
     "sequelize": "^6.5.0"
