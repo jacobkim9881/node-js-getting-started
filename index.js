@@ -142,9 +142,20 @@ app.get('/', async (req, res) => {
 
 })
 
-app.post('/test', async(req, res) => {
+app.post('/create', async(req, res) => {
 
-await hash({ password: req.body.password }, (error, pass, salt, hash) =>{	
+  const sameName = await User.findAll({
+	  where: { name : req.body.name}
+	  })
+
+  if(!req.body.name) {
+    console.log('Error is occured while post: Write name.');
+    res.end();
+  } else if(sameName[0] !== undefined) {
+  console.log('Has same name: ', req.body.name);
+  res.end();
+  } else {
+await hash({ password: req.body.password }, (error, pass, salt, hash) =>{
  const time = new Date().getTime();
  const user1 = User.create({ name: req.body.name, salt: salt, hash: hash, createdAt: time, updatedAt: time }); 
 
@@ -155,6 +166,8 @@ await hash({ password: req.body.password }, (error, pass, salt, hash) =>{
  }
  res.end();
  })
+
+ }
 })
 
 app.get('/find/:userId', async (req, res) => {
@@ -176,9 +189,15 @@ app.get('/find/:userId', async (req, res) => {
 
 app.get('/auth', async (req,res)=> {
 
+  if(!req.body.name) {
+    console.log('Error is occured while auth: Write name.');
+    res.end();
+  } else {
+
+
   const user = await User.findAll({
     where: {
-      id: req.body.id
+      name: req.body.name
     }
   })
 
@@ -198,13 +217,16 @@ app.get('/auth', async (req,res)=> {
  if (hash === data.hash) {
  console.log('Auth is successfull: ', data.id, data.name)
 req.session.loggedin = true;
-  req.session.username = data.name;	
+  req.session.username = data.name;
+  req.session.cookie.maxAge = 1000 * 60 * 60;	 
   console.log(req.session)	 
-  res.redirect('/home')
+//  res.redirect('/home')
+  res.json( {  session: req.session  } )	 
  } 	 
  })
 
 //res.json({name: data.name});
+  }	 
 })
 
 app.get('/home', (req, res) => {
