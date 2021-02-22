@@ -134,26 +134,33 @@ app.get('/', async (req, res) => {
   
   try {
   res.json(users);
-  console.log('Select is successfull: ', JSON.stringify(users));	 
+  console.log('Select is successfull.');	 
   } catch(err) {
   console.log('Error is occured while select: ', err);
   res.end();	  
   }
 
 })
+  const url= 'http://localhost:3000/';
+  const signupUrl = url + 'account-sign-up.html';	
+  const signinUrl = url + 'account-sign-in.html';	
 
 app.post('/create', async(req, res) => {
-
-  const sameName = await User.findAll({
+	console.log('req.body: ', req.body);
+ const sameName = await User.findAll({
 	  where: { name : req.body.name}
 	  })
 
   if(!req.body.name) {
     console.log('Error is occured while post: Write name.');
-    res.end();
+    res.redirect(signupUrl);
+  } else if(req.body.password !== req.body["signup-password-confirm"]) {
+
+    console.log('Error is occured while post: passwords are not same.');
+    res.redirect(signupUrl);
   } else if(sameName[0] !== undefined) {
   console.log('Has same name: ', req.body.name);
-  res.end();
+    res.redirect(signupUrl);
   } else {
 await hash({ password: req.body.password }, (error, pass, salt, hash) =>{
  const time = new Date().getTime();
@@ -164,7 +171,7 @@ await hash({ password: req.body.password }, (error, pass, salt, hash) =>{
  } catch(err) {
   console.log('Error is occured while post: ', err);  
  }
- res.end();
+ res.redirect(signinUrl);
  })
 
  }
@@ -187,11 +194,11 @@ app.get('/find/:userId', async (req, res) => {
 	
 })
 
-app.get('/auth', async (req,res)=> {
+app.post('/auth', async (req,res)=> {
 
   if(!req.body.name) {
-    console.log('Error is occured while auth: Write name.');
-    res.end();
+    console.log('Error is occured while auth: Write name: ', req.body);
+    res.redirect(signinUrl);
   } else {
 
 
@@ -212,16 +219,17 @@ app.get('/auth', async (req,res)=> {
  hash({ password: req.body.password, salt:data.salt  }, (error, pass, salt, hash) => {
  if (error) {
   console.log('Error is occured while hash: ', error);
-  res.end();	 
+  res.redirect(signinUrl);	 
  }
  if (hash === data.hash) {
  console.log('Auth is successfull: ', data.id, data.name)
 req.session.loggedin = true;
   req.session.username = data.name;
-  req.session.cookie.maxAge = 1000 * 60 * 60;	 
+  req.session.cookie.maxAge = 1000 * 60 * 60;	
+	 console.log('res: ', res.req.session);
   console.log(req.session)	 
-//  res.redirect('/home')
-  res.json( {  session: req.session  } )	 
+  res.redirect(url)
+//  res.json( {  session: req.session  } )	 
  } 	 
  })
 
