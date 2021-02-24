@@ -3,6 +3,7 @@ const path = require('path')
 const bodyParser = require('body-parser')
 const session = require('express-session')
 const hash = require('pbkdf2-password')()
+const sendmail = require('sendmail')()
 
 const { Sequelize, DataTypes, Model } = require('sequelize');
 
@@ -141,7 +142,7 @@ app.get('/', async (req, res) => {
   }
 
 })
-  const url= 'http://localhost:3000/';
+  const url= 'https://localhost:3000/';
   const signupUrl = url + 'account-sign-up.html';	
   const signinUrl = url + 'account-sign-in.html';	
 
@@ -208,37 +209,113 @@ app.post('/auth', async (req,res)=> {
     }
   })
 
+  try{
+  console.log('Loading id is successfull: ', user[0].dataValues);
+  } catch(err) {
+  console.log('Error is occured while loading id: ', err);  	 
+  res.json({"Error": "Email address is not valid"});	  
+  }
   const data = user[0].dataValues;
 
-  try{
-  console.log('Loading id is successfull: ', data);	  
-  } catch(err) {
-  console.log('Error is occured while loading id: ', err);
-  }
-	
  hash({ password: req.body.password, salt:data.salt  }, (error, pass, salt, hash) => {
  if (error) {
   console.log('Error is occured while hash: ', error);
   res.redirect(signinUrl);	 
- }
- if (hash === data.hash) {
+ } else if (hash === data.hash) {
  console.log('Auth is successfull: ', data.id, data.name)
 req.session.loggedin = true;
   req.session.username = data.name;
   req.session.cookie.maxAge = 1000 * 60 * 60;	
 	 console.log('res: ', res.req.session);
   console.log(req.session)	 
-  res.redirect(url)
-//  res.json( {  session: req.session  } )	 
- } 	 
+//  res.redirect(url)
+  res.json( {  session: req.session  } )	 
+ } else {
+  console.log('Password is not valid');
+  res.json({"Error": "Password is not valid"});	 
+ }
  })
 
 //res.json({name: data.name});
   }	 
 })
 
+app.post('/info', async (req, res) => {
+  if (!req.body.name && !req.body.password && !req.body["new_password"]) {
+  console.log('Information was not put');
+  res.redirect(url + 'account-info.html');	  
+  } else {
+  const user = await User.findAll({
+    where: {
+      name: req.body.name
+    }
+  })
+
+  try{
+  console.log('Loading id is successfull: ', user[0].dataValues);	  
+  } catch(err) {
+  console.log('Error is occured while loading id: ', err);
+  res.redirect(url + 'account-info.html');	  
+  }
+  const data = user[0].dataValues;
+
+ new Promise((resolve, reject) => { hash({ password: req.body.password, salt:data.salt  }, (error, pass, salt, hash) => {
+ if (error) {
+  console.log('Error is occured while hash: ', error);
+  res.redirect(url + 'account-info.html');	  
+  reject();	
+} else if (hash === data.hash) {
+ console.log('Auth is successfull: ', data.id, data.name)
+ resolve();	 
+} else { 
+ console.log('Password is not same');
+// res.redirect(url + 'account-info.html');	 
+ res.json({ "Error": "password is not valid"}); 
+ reject();	
+ } 	 
+ })
+ })
+.then( () => { hash({ password: req.body["new_password"] }, async (error, pass, salt, hash) =>{
+ if (error) {
+ console.log('Error is occured while changing password: ', error);
+ res.redirect(url + 'account-info.html');	  
+ } else {
+ const time = new Date().getTime();
+ const updatedUser = await User.update({ 
+	 salt: salt, 
+	 hash: hash, 
+	 updatedAt: time}, {
+   where: {
+     name: req.body.name
+   }
+ });	 
+
+ console.log('User update is successful: ', updatedUser);	 
+ res.redirect(url);	  
+
+ }
+ })
+})
+  }
+})
+
 app.get('/home', (req, res) => {
   console.log(req.session);
+  res.end();
+})
+
+app.get('/email', (req,res) => {
+
+  sendmail({
+    from: 'jacobkim116@gmail.com',
+    to: 'jacobkim9881@gmail.com ',
+    subject: 'test sendmail',
+    html: 'Mail of test sendmail ',
+  }, function(err, reply) {
+    console.log(err && err.stack);
+    console.dir(reply);
+});	
+
   res.end();
 })
 
