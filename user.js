@@ -1,7 +1,77 @@
 const express = require('express')
 const app = express.Router()
-const { DataTypes, Model } = require('sequelize');
+const { Sequelize, DataTypes, Model } = require('sequelize');
 const sequelize = require('./db')
+const bodyParser = require('body-parser')
+const hash = require('pbkdf2-password')()
+const session = require('express-session')
+const SequelizeStore = require("connect-session-sequelize")(session.Store);
+
+app.use(bodyParser.json());
+app.use(bodyParser.urlencoded({ extended: true}));
+
+class Session extends Model {
+  static getSession() {
+  return 'session'
+  }
+}
+
+try {
+  console.log('Get session table is successfull: ', Session.getSession())
+
+} catch(err) {
+  console.log('Got an error while getting session table: ', err)
+}
+
+Session.init({
+   id: {
+	  type: DataTypes.INTEGER,
+	  primaryKey: true,
+	  autoIncrement: true
+  },
+  sid: {
+   type: DataTypes.STRING,
+   allowNull: false,
+   timestamps: true	  
+  },
+  expires: {
+   type: DataTypes.DATE
+  },	
+  name: {
+   type: DataTypes.STRING
+  },
+  data: {
+   type: DataTypes.STRING
+  }
+}, {
+  sequelize,
+  tableName: 'session_storage'	
+})
+
+try {
+  console.log('Defining table: ', Session);
+} catch(err) {
+  console.log('Error is occured while defining table: ', err);
+
+}
+
+const sessStore = new SequelizeStore({
+      db: sequelize,
+      tableName: 'session_storage',	  
+      checkExpirationInterval: 15 * 60 * 1000, // The interval at which to cleanup expired sessions in milliseconds.
+      expiration: 24 * 60 * 60 * 1000  // The maximum age (in milliseconds) of a valid session.
+  })
+
+/////////////////// SET SECRET
+const sessSecret = 'keyboard cat';
+//////////////////
+app.use(session({
+  secret: sessSecret,
+  resave: false,
+  store: sessStore,
+  saveUninitialized: true,
+  cookie: { secure: true }
+}))
 
 class User extends Model {
   static getAdmin() {
@@ -134,7 +204,6 @@ app.get('/find/:userId', async (req, res) => {
 })
 
 app.post('/auth', async (req,res)=> {
-
   if(!req.body.name) {
     console.log('Error is occured while auth: Write name: ', req.body);
     res.redirect(signinUrl);
@@ -155,17 +224,36 @@ app.post('/auth', async (req,res)=> {
   }
   const data = user[0].dataValues;
 
- hash({ password: req.body.password, salt:data.salt  }, (error, pass, salt, hash) => {
+ hash({ password: req.body.password, salt:data.salt  }, async (error, pass, salt, hash) => {
  if (error) {
   console.log('Error is occured while hash: ', error);
   res.redirect(signinUrl);	 
  } else if (hash === data.hash) {
  console.log('Auth is successfull: ', data.id, data.name)
+  const day = new Date().getTime();
+  const sessionLife = 1000 * 60	*3; 
+  const expireTime = new Date(day + sessionLife);
+
+  const sessStorage = await Session.create({
+	  sid: req.sessionID, 
+	  name: req.body.name, 
+	  expires: expireTime,
+  	  data: JSON.stringify(req.session), 
+	  createdAt: day,
+	  updatedAt: day
+  });
+
+  try {
+    console.log('Created session: ', sessStorage.createdAt);
+  } catch(err) {
+    console.log('Failed to create session: ', err);
+  }
 req.session.loggedin = true;
   req.session.username = data.name;
-  req.session.cookie.maxAge = 1000 * 60 * 60;	
-	 console.log('res: ', res.req.session);
-  console.log(req.session)	 
+  req.session.cookie.maxAge = sessionLife;	
+ console.log('res: ', res.req.session);
+  console.log(req.session)
+  console.log(req.sessionID);
 //  res.redirect(url)
   res.json( {  session: req.session  } )	 
  } else {
@@ -237,9 +325,21 @@ app.post('/info', async (req, res) => {
   }
 })
 
-app.get('/home', (req, res) => {
-  console.log(req.session);
-  res.end();
+app.post('/home', async (req, res) => {
+  const currSess = await Session.findAll({
+    where: {
+      name: req.body.name,
+      sid: req.body.sid	    
+    }
+  });
+
+  try {
+    console.log('Will be expired at : ', currSess[0].dataValues.expires);
+    res.json({name: currSess[0].dataValues.name});	  
+  } catch(err) {
+    console.log('No session in session table: ', err);
+    res.json({ Error: 'session expired'});	  
+  }
 })
 
 app.get('/email', (req,res) => {
