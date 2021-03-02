@@ -1,16 +1,42 @@
 const express = require('express')
 const path = require('path')
 const bodyParser = require('body-parser')
-const session = require('express-session')
-const hash = require('pbkdf2-password')()
+//const session = require('express-session')
+//const SequelizeStore = require("connect-session-sequelize")(session.Store);
+//const sequelize = require('./db')
 const sendmail = require('sendmail')()
 const user = require('./user')
-const test1 = require('./test1')
 
 const PORT = process.env.PORT || 5000
 
 const cors = require('cors');
 
+const app = express();
+
+app.use('/', user);
+
+app.use('/static', express.static('public'));
+
+app.use(cors());
+
+app.set('trust proxy', 1) // trust first proxy
+/*
+app.use(session({
+  secret: 'keyboard cat',
+  resave: false,
+  store: new SequelizeStore({
+      db: sequelize,
+      checkExpirationInterval: 15 * 60 * 1000, // The interval at which to cleanup expired sessions in milliseconds.
+      expiration: 24 * 60 * 60 * 1000  // The maximum age (in milliseconds) of a valid session.
+  }),
+  saveUninitialized: true,
+  cookie: { secure: true }
+}))
+*/
+app.use(bodyParser.json());
+app.use(bodyParser.urlencoded({ extended: true}));
+
+/*
 const { Pool } = require('pg');
 
 const poolConfig = {
@@ -33,26 +59,8 @@ const heroPool = {
 const getPool = process.env.USER == 'kim' ? poolConfig : heroPool;
 
 const pool = new Pool(getPool);
+*/
 
-const app = express();
-
-app.use('/', user);
-app.use('/', test1)
-
-app.use('/static', express.static('public'));
-
-app.use(cors());
-
-app.set('trust proxy', 1) // trust first proxy
-app.use(session({
-  secret: 'keyboard cat',
-  resave: false,
-  saveUninitialized: true,
-  cookie: { secure: true }
-}))
-
-app.use(bodyParser.json());
-app.use(bodyParser.urlencoded({ extended: true}));
 
 /*
 class User extends Model {
